@@ -21,7 +21,7 @@ Or install it yourself as:
 
 Add the following to your gemfile:
 
-gem 'angular-ui-router-rails'
+    gem 'angular-ui-router-rails', :git => 'git@github.com:rodeschen/angular-ui-router-rails.git'
 
 Add the forollowing directive to your Javascript manifest file (application.js):
 
