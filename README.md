@@ -26,3 +26,6 @@ gem 'angular-ui-router-rails'
 Add the forollowing directive to your Javascript manifest file (application.js):
 
     //= require angular-ui-router
+
+
+reference by  [apolishch/angular-ui-router-rails](https://github.com/angular-ui/ui-router)
