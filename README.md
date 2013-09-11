@@ -1,5 +1,6 @@
 ## angular-ui-router-rails
-angular-ui-router-rails wraps the [Angular UI Router](https://github.com/angular-ui/ui-router) library for use in Rails 3.1 and above. Assets will minify automatically during production.
+angular-ui-router-rails (0.2.0) wraps the [Angular UI Router](https://github.com/angular-ui/ui-router) library for use in Rails 3.1 and above. Assets will minify automatically during production.
+
 
 
 ## Installation
