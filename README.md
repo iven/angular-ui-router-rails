@@ -1,5 +1,5 @@
 ## angular-ui-router-rails
-angular-ui-router-rails (0.2.0) wraps the [Angular UI Router](https://github.com/angular-ui/ui-router) library for use in Rails 3.1 and above. Assets will minify automatically during production.
+angular-ui-router-rails (0.2.1) wraps the [Angular UI Router](https://github.com/angular-ui/ui-router) library for use in Rails 3.1 and above. Assets will minify automatically during production.
 
 
 
@@ -19,10 +19,6 @@ Or install it yourself as:
 
 
 ## Usage
-
-Add the following to your gemfile:
-
-    gem 'angular-ui-router-rails', :git => 'git@github.com:rodeschen/angular-ui-router-rails.git'
 
 Add the forollowing directive to your Javascript manifest file (application.js):
 

@@ -11,5 +11,5 @@ Gem::Specification.new do |spec|
   spec.description   = "Injects AngularUI UI-ROUTER into your asset pipeline."
   spec.summary       = "Angular-ui ui-Router on Rails"
   spec.license       = "MIT"
-  spec.files         = Dir["{lib,vendor}/**/*"] + ["MIT-LICENSE", "README.md"]
+  spec.files         = Dir["{lib,app}/**/*"] + ["MIT-LICENSE", "README.md"]
 end
