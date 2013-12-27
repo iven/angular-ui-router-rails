@@ -1,6 +1,6 @@
 /**
  * State-based routing for AngularJS
- * @version v0.2.7
+ * @version v0.2.0-dev-2013-11-14
  * @link http://angular-ui.github.com/
  * @license MIT License, http://www.opensource.org/licenses/MIT
  */
@@ -58,46 +58,6 @@ function ancestors(first, second) {
 }
 
 /**
- * IE8-safe wrapper for `Object.keys()`.
- *
- * @param {Object} object A JavaScript object.
- * @return {Array} Returns the keys of the object as an array.
- */
-function keys(object) {
-  if (Object.keys) {
-    return Object.keys(object);
-  }
-  var result = [];
-
-  angular.forEach(object, function(val, key) {
-    result.push(key);
-  });
-  return result;
-}
-
-/**
- * IE8-safe wrapper for `Array.prototype.indexOf()`.
- *
- * @param {Array} array A JavaScript array.
- * @param {*} value A value to search the array for.
- * @return {Number} Returns the array index value of `value`, or `-1` if not present.
- */
-function arraySearch(array, value) {
-  if (Array.prototype.indexOf) {
-    return array.indexOf(value, Number(arguments[2]) || 0);
-  }
-  var len = array.length >>> 0, from = Number(arguments[2]) || 0;
-  from = (from < 0) ? Math.ceil(from) : Math.floor(from);
-
-  if (from < 0) from += len;
-
-  for (; from < len; from++) {
-    if (from in array && array[from] === value) return from;
-  }
-  return -1;
-}
-
-/**
  * Merges a set of parameters with all parameters inherited between the common parents of the
  * current state and a given destination state.
  *
@@ -114,67 +74,12 @@ function inheritParams(currentParams, newParams, $current, $to) {
     parentParams = parents[i].params;
 
     for (var j in parentParams) {
-      if (arraySearch(inheritList, parentParams[j]) >= 0) continue;
+      if (inheritList.indexOf(parentParams[j]) >= 0) continue;
       inheritList.push(parentParams[j]);
       inherited[parentParams[j]] = currentParams[parentParams[j]];
     }
   }
   return extend({}, inherited, newParams);
-}
-
-/**
- * Normalizes a set of values to string or `null`, filtering them by a list of keys.
- *
- * @param {Array} keys The list of keys to normalize/return.
- * @param {Object} values An object hash of values to normalize.
- * @return {Object} Returns an object hash of normalized string values.
- */
-function normalize(keys, values) {
-  var normalized = {};
-
-  forEach(keys, function (name) {
-    var value = values[name];
-    normalized[name] = (value != null) ? String(value) : null;
-  });
-  return normalized;
-}
-
-/**
- * Performs a non-strict comparison of the subset of two objects, defined by a list of keys.
- *
- * @param {Object} a The first object.
- * @param {Object} b The second object.
- * @param {Array} keys The list of keys within each object to compare. If the list is empty or not specified,
- *                     it defaults to the list of keys in `a`.
- * @return {Boolean} Returns `true` if the keys match, otherwise `false`.
- */
-function equalForKeys(a, b, keys) {
-  if (!keys) {
-    keys = [];
-    for (var n in a) keys.push(n); // Used instead of Object.keys() for IE8 compatibility
-  }
-
-  for (var i=0; i<keys.length; i++) {
-    var k = keys[i];
-    if (a[k] != b[k]) return false; // Not '===', values aren't necessarily normalized
-  }
-  return true;
-}
-
-/**
- * Returns the subset of an object, based on a list of keys.
- *
- * @param {Array} keys
- * @param {Object} values
- * @return {Boolean} Returns a subset of `values`.
- */
-function filterByKeys(keys, values) {
-  var filtered = {};
-
-  forEach(keys, function (name) {
-    filtered[name] = values[name];
-  });
-  return filtered;
 }
 
 angular.module('ui.router.util', ['ng']);
@@ -839,8 +744,7 @@ function $UrlRouterProvider(  $urlMatcherFactory) {
     [        '$location', '$rootScope', '$injector',
     function ($location,   $rootScope,   $injector) {
       // TODO: Optimize groups of rules with non-empty prefix into some sort of decision tree
-      function update(evt) {
-        if (evt && evt.defaultPrevented) return;
+      function update() {
         function check(rule) {
           var handled = rule($injector, $location);
           if (handled) {
@@ -858,12 +762,7 @@ function $UrlRouterProvider(  $urlMatcherFactory) {
       }
 
       $rootScope.$on('$locationChangeSuccess', update);
-
-      return {
-        sync: function () {
-          update();
-        }
-      };
+      return {};
     }];
 }
 
@@ -872,7 +771,7 @@ angular.module('ui.router.router').provider('$urlRouter', $UrlRouterProvider);
 $StateProvider.$inject = ['$urlRouterProvider', '$urlMatcherFactoryProvider', '$locationProvider'];
 function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory,           $locationProvider) {
 
-  var root, states = {}, $state, queue = {}, abstractKey = 'abstract';
+  var root, states = {}, $state, queue = {};
 
   // Builds state properties from definition passed to registerState()
   var stateBuilder = {
@@ -1049,10 +948,10 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory,           $
     states[name] = state;
 
     // Register the state in the global state list and with $urlRouter if necessary.
-    if (!state[abstractKey] && state.url) {
+    if (!state['abstract'] && state.url) {
       $urlRouterProvider.when(state.url, ['$match', '$stateParams', function ($match, $stateParams) {
         if ($state.$current.navigable != state || !equalForKeys($match, $stateParams)) {
-          $state.transitionTo(state, $match, { location: false });
+          $state.transitionTo(state, $match, false);
         }
       }]);
     }
@@ -1189,7 +1088,7 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory,           $
           throw new Error("No such state '" + to + "'");
         }
       }
-      if (toState[abstractKey]) throw new Error("Cannot transition to abstract state '" + to + "'");
+      if (toState['abstract']) throw new Error("Cannot transition to abstract state '" + to + "'");
       if (options.inherit) toParams = inheritParams($stateParams, toParams || {}, $state.$current, toState);
       to = toState;
 
@@ -1207,9 +1106,8 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory,           $
       // But clear 'transition', as we still want to cancel any other pending transitions.
       // TODO: We may not want to bump 'transition' if we're called from a location change that we've initiated ourselves,
       // because we might accidentally abort a legitimate transition initiated from code?
-      if (shouldTriggerReload(to, from, locals, options) ) {
-        if ( to.self.reloadOnSearch !== false )
-          syncUrl();
+      if (to === from && locals === from.locals && !options.reload) {
+        syncUrl();
         $state.transition = null;
         return $q.when($state.current);
       }
@@ -1359,13 +1257,13 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory,           $
       return url;
     };
 
-    $state.get = function (stateOrName, context) {
+    $state.get = function (stateOrName) {
       if (!isDefined(stateOrName)) {
         var list = [];
         forEach(states, function(state) { list.push(state.self); });
         return list;
       }
-      var state = findState(stateOrName, context);
+      var state = findState(stateOrName);
       return (state && state.self) ? state.self : null;
     };
 
@@ -1417,10 +1315,37 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory,           $
     return $state;
   }
 
-  function shouldTriggerReload(to, from, locals, options) {
-    if ( to === from && ((locals === from.locals && !options.reload) || (to.self.reloadOnSearch === false)) ) {
-      return true;
+  function normalize(keys, values) {
+    var normalized = {};
+
+    forEach(keys, function (name) {
+      var value = values[name];
+      normalized[name] = (value != null) ? String(value) : null;
+    });
+    return normalized;
+  }
+
+  function equalForKeys(a, b, keys) {
+    // If keys not provided, assume keys from object 'a'
+    if (!keys) {
+      keys = [];
+      for (var n in a) keys.push(n); // Used instead of Object.keys() for IE8 compatibility
     }
+
+    for (var i=0; i<keys.length; i++) {
+      var k = keys[i];
+      if (a[k] != b[k]) return false; // Not '===', values aren't necessarily normalized
+    }
+    return true;
+  }
+
+  function filterByKeys(keys, values) {
+    var filtered = {};
+
+    forEach(keys, function (name) {
+      filtered[name] = values[name];
+    });
+    return filtered;
   }
 }
 
@@ -1458,60 +1383,45 @@ function $ViewProvider() {
 angular.module('ui.router.state').provider('$view', $ViewProvider);
 
 
-$ViewDirective.$inject = ['$state', '$compile', '$controller', '$injector', '$anchorScroll'];
-function $ViewDirective(   $state,   $compile,   $controller,   $injector,   $anchorScroll) {
-  var $animator = $injector.has('$animator') ? $injector.get('$animator') : false;
-  var viewIsUpdating = false;
+$ViewDirective.$inject = ['$state', '$compile', '$controller', '$anchorScroll', '$injector'];
+function $ViewDirective($state, $compile, $controller, $anchorScroll, $injector) {
+
+  var viewIsUpdating = false,
+      $animate = $injector.has('$animate') ? $injector.get('$animate') : null;
+
+  // Returns a set of DOM manipulation functions based on whether animation
+  // should be performed
+  var renderer = function (doAnimate) {
+    return ({
+      "true": {
+        leave: function (element) { $animate.leave(element); },
+        enter: function (element, anchor) { $animate.enter(element, null, anchor); }
+      },
+      "false": {
+        leave: function (element) { element.remove(); },
+        enter: function (element, anchor) { anchor.after(element); }
+      }
+    })[($animate && doAnimate).toString()];
+  };
 
   var directive = {
     restrict: 'ECA',
-    terminal: true,
-    priority: 1000,
-    transclude: true,
-    compile: function (element, attr, transclude) {
-      return function(scope, element, attr) {
-        var viewScope, viewLocals,
-            name = attr[directive.name] || attr.name || '',
-            onloadExp = attr.onload || '',
-            animate = $animator && $animator(scope, attr),
-            initialView = transclude(scope);
+    compile: function (element, attrs) {
+      var defaultContent = element.html(), isDefault = true,
+          anchor = angular.element(document.createComment(' ui-view '));
 
-        // Returns a set of DOM manipulation functions based on whether animation
-        // should be performed
-        var renderer = function(doAnimate) {
-          return ({
-            "true": {
-              remove: function(element) { animate.leave(element.contents(), element); },
-              restore: function(compiled, element) { animate.enter(compiled, element); },
-              populate: function(template, element) {
-                var contents = angular.element('<div></div>').html(template).contents();
-                animate.enter(contents, element);
-                return contents;
-              }
-            },
-            "false": {
-              remove: function(element) { element.html(''); },
-              restore: function(compiled, element) { element.append(compiled); },
-              populate: function(template, element) {
-                element.html(template);
-                return element.contents();
-              }
-            }
-          })[doAnimate.toString()];
-        };
+      element.prepend(anchor);
 
-        // Put back the compiled initial view
-        element.append(initialView);
+      return function ($scope) {
+        var currentScope, currentElement, viewLocals,
+            name = attrs[directive.name] || attrs.name || '',
+            onloadExp = attrs.onload || '';
 
-        // Find the details of the parent view directive (if any) and use it
-        // to derive our own qualified view name, then hang our own details
-        // off the DOM so child directives can find it.
         var parent = element.parent().inheritedData('$uiView');
-        if (name.indexOf('@') < 0) name  = name + '@' + (parent ? parent.state.name : '');
+        if (name.indexOf('@') < 0) name = name + '@' + (parent ? parent.state.name : '');
         var view = { name: name, state: null };
-        element.data('$uiView', view);
 
-        var eventHook = function() {
+        var eventHook = function () {
           if (viewIsUpdating) return;
           viewIsUpdating = true;
 
@@ -1522,46 +1432,70 @@ function $ViewDirective(   $state,   $compile,   $controller,   $injector,   $an
           viewIsUpdating = false;
         };
 
-        scope.$on('$stateChangeSuccess', eventHook);
-        scope.$on('$viewContentLoading', eventHook);
+        $scope.$on('$stateChangeSuccess', eventHook);
+        $scope.$on('$viewContentLoading', eventHook);
+
         updateView(false);
 
+        function cleanupLastView() {
+          if (currentElement) {
+            renderer(true).leave(currentElement);
+            currentElement = null;
+          }
+
+          if (currentScope) {
+            currentScope.$destroy();
+            currentScope = null;
+          }
+        }
+
         function updateView(doAnimate) {
-          var locals = $state.$current && $state.$current.locals[name];
-          if (locals === viewLocals) return; // nothing to do
-          var render = renderer(animate && doAnimate);
+          var locals = $state.$current && $state.$current.locals[name],
+              render = renderer(doAnimate);
 
-          // Remove existing content
-          render.remove(element);
-
-          // Destroy previous view scope
-          if (viewScope) {
-            viewScope.$destroy();
-            viewScope = null;
+          if (isDefault) {
+            isDefault = false;
+            element.replaceWith(anchor);
           }
 
           if (!locals) {
-            viewLocals = null;
-            view.state = null;
+            cleanupLastView();
+            currentElement = element.clone();
+            currentElement.html(defaultContent);
+            render.enter(currentElement, anchor);
 
-            // Restore the initial view
-            return render.restore(initialView, element);
+            currentScope = $scope.$new();
+            $compile(currentElement.contents())(currentScope);
+            return;
           }
+
+          if (locals === viewLocals) return; // nothing to do
+
+          cleanupLastView();
+
+          currentElement = element.clone();
+          currentElement.html(locals.$template ? locals.$template : defaultContent);
+          render.enter(currentElement, anchor);
+
+          currentElement.data('$uiView', view);
 
           viewLocals = locals;
           view.state = locals.$$state;
 
-          var link = $compile(render.populate(locals.$template, element));
-          viewScope = scope.$new();
+          var link = $compile(currentElement.contents());
+
+          currentScope = $scope.$new();
 
           if (locals.$$controller) {
-            locals.$scope = viewScope;
+            locals.$scope = currentScope;
             var controller = $controller(locals.$$controller, locals);
-            element.children().data('$ngControllerController', controller);
+            currentElement.children().data('$ngControllerController', controller);
           }
-          link(viewScope);
-          viewScope.$emit('$viewContentLoaded');
-          if (onloadExp) viewScope.$eval(onloadExp);
+
+          link(currentScope);
+
+          currentScope.$emit('$viewContentLoaded');
+          if (onloadExp) currentScope.$eval(onloadExp);
 
           // TODO: This seems strange, shouldn't $anchorScroll listen for $viewContentLoaded if necessary?
           // $anchorScroll might listen on event...
@@ -1581,24 +1515,21 @@ function parseStateRef(ref) {
   return { state: parsed[1], paramExpr: parsed[3] || null };
 }
 
-function stateContext(el) {
-  var stateData = el.parent().inheritedData('$uiView');
-
-  if (stateData && stateData.state && stateData.state.name) {
-    return stateData.state;
-  }
-}
-
-$StateRefDirective.$inject = ['$state', '$timeout'];
-function $StateRefDirective($state, $timeout) {
+$StateRefDirective.$inject = ['$state'];
+function $StateRefDirective($state) {
   return {
     restrict: 'A',
-    require: '?^uiSrefActive',
-    link: function(scope, element, attrs, uiSrefActive) {
+    link: function(scope, element, attrs) {
       var ref = parseStateRef(attrs.uiSref);
-      var params = null, url = null, base = stateContext(element) || $state.$current;
+      var params = null, url = null, base = $state.$current;
       var isForm = element[0].nodeName === "FORM";
       var attr = isForm ? "action" : "href", nav = true;
+
+      var stateData = element.parent().inheritedData('$uiView');
+
+      if (stateData && stateData.state && stateData.state.name) {
+        base = stateData.state;
+      }
 
       var update = function(newVal) {
         if (newVal) params = newVal;
@@ -1611,9 +1542,6 @@ function $StateRefDirective($state, $timeout) {
           return false;
         }
         element[0][attr] = newHref;
-        if (uiSrefActive) {
-          uiSrefActive.$$setStateInfo(ref.state, params);
-        }
       };
 
       if (ref.paramExpr) {
@@ -1629,13 +1557,9 @@ function $StateRefDirective($state, $timeout) {
       element.bind("click", function(e) {
         var button = e.which || e.button;
 
-        if ((button === 0 || button == 1) && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-          // HACK: This is to allow ng-clicks to be processed before the transition is initiated:
-          $timeout(function() {
-            scope.$apply(function() {
-              $state.go(ref.state, params, { relative: base });
-            });
-          });
+        if ((button == 1) && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+          $state.go(ref.state, params, { relative: base });
+          scope.$apply();
           e.preventDefault();
         }
       });
@@ -1643,44 +1567,7 @@ function $StateRefDirective($state, $timeout) {
   };
 }
 
-$StateActiveDirective.$inject = ['$state', '$stateParams', '$interpolate'];
-function $StateActiveDirective($state, $stateParams, $interpolate) {
-  return {
-    restrict: "A",
-    controller: function($scope, $element, $attrs) {
-      var state, params, activeClass;
-
-      // There probably isn't much point in $observing this
-      activeClass = $interpolate($attrs.uiSrefActive || '', false)($scope);
-
-      // Allow uiSref to communicate with uiSrefActive
-      this.$$setStateInfo = function(newState, newParams) {
-        state = $state.get(newState, stateContext($element));
-        params = newParams;
-        update();
-      };
-
-      $scope.$on('$stateChangeSuccess', update);
-
-      // Update route state
-      function update() {
-        if ($state.$current.self === state && matchesParams()) {
-          $element.addClass(activeClass);
-        } else {
-          $element.removeClass(activeClass);
-        }
-      }
-
-      function matchesParams() {
-        return !params || equalForKeys(params, $stateParams);
-      }
-    }
-  };
-}
-
-angular.module('ui.router.state')
-  .directive('uiSref', $StateRefDirective)
-  .directive('uiSrefActive', $StateActiveDirective);
+angular.module('ui.router.state').directive('uiSref', $StateRefDirective);
 
 $RouteProvider.$inject = ['$stateProvider', '$urlRouterProvider'];
 function $RouteProvider(  $stateProvider,    $urlRouterProvider) {
