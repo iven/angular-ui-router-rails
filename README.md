@@ -1,7 +1,8 @@
-## angular-ui-router-rails
+## angular-ui-router-rails (DEPRECATED)
 
 angular-ui-router-rails (0.2.15.0) wraps the [Angular UI Router](https://github.com/angular-ui/ui-router) library for use in Rails 3.1 and above. Assets will minify automatically during production.
 
+NOTE: This repo is not maintained any more. Better use [Rails Assets](https://rails-assets.org/) or [bower-rails](https://github.com/rharriso/bower-rails/) to manage the assets.
 
 ## Installation
 
